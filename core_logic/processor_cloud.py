@@ -14,9 +14,35 @@ def process_excel_cloud(source_file, template_file, output_dir=None):
     source_df = pd.read_excel(source_file)
     
     # Identify Link Column in Source
-    # User said: "upload a short link excel... fill links in order"
-    # Look for 'link', '短链', or use first column
-    link_col = next((c for c in source_df.columns if 'link' in str(c).lower() or '链' in str(c)), source_df.columns[0])
+    # User feedback: "需要合并、导出到最后output的是“短链接”那一列"
+    # Prioritize "短链接" > "Short Link" > "link"
+    cols_lower = [str(c).lower() for c in source_df.columns]
+    
+    link_col = None
+    # 1. Exact match for specific Chinese term
+    for c in source_df.columns:
+        if "短链接" in str(c):
+            link_col = c
+            break
+            
+    # 2. English term if not found
+    if not link_col:
+        for c in source_df.columns:
+            if "short link" in str(c).lower():
+                link_col = c
+                break
+                
+    # 3. Fallback to generic "link"
+    if not link_col:
+        for c in source_df.columns:
+            if "link" in str(c).lower() or "链接" in str(c):
+                link_col = c
+                break
+                
+    # 4. Fallback to first column
+    if not link_col:
+        link_col = source_df.columns[0]
+
     links = source_df[link_col].dropna().tolist()
     print(f"Source: Found {len(links)} links in column '{link_col}'")
 
@@ -165,7 +191,100 @@ def process_excel_cloud(source_file, template_file, output_dir=None):
             
     return generated_files
 
-if __name__ == "__main__":
+def process_excel_cloud_get_data(source_file, template_file):
+    """
+    Step 1: Process and get dataframes and default names.
+    Returns: { group_id: { "default_name": str, "data": DataFrame } }
+    This allows the UI to ask for custom names before saving.
+    """
+    # Reuse logic logic from above, but split the save part
+    # ... (Duplicate code avoided by refactoring or copying essential parts)
+    # Ideally we refactor `process_excel_cloud` to call `process_excel_cloud_get_data`
+    pass
+    
+    # RE-IMPLEMENTING logic to avoid code duplication issues with tools
+    # Start of logic needed for data generation
+    source_df = pd.read_excel(source_file)
+    cols_lower = [str(c).lower() for c in source_df.columns]
+    link_col = None
+    for c in source_df.columns:
+        if "短链接" in str(c):
+            link_col = c
+            break
+    if not link_col:
+        for c in source_df.columns:
+            if "short link" in str(c).lower():
+                link_col = c
+                break
+    if not link_col:
+        for c in source_df.columns:
+            if "link" in str(c).lower() or "链接" in str(c):
+                link_col = c
+                break
+    if not link_col: link_col = source_df.columns[0]
+    links = source_df[link_col].dropna().tolist()
+
+    template_df = pd.read_excel(template_file)
+    
+    def find_col(keywords, default_idx=None):
+        if isinstance(keywords, str): keywords = [keywords]
+        for col in template_df.columns:
+            for k in keywords:
+                if k in str(col): return col
+        if default_idx is not None and default_idx < len(template_df.columns): return template_df.columns[default_idx]
+        return None
+
+    col_text_id = find_col(["文案", "Text"], 0)
+    col_body = find_col("正文", 1)
+    col_back = find_col(["回到", "提瓦特", "Back"], 2)
+    col_link_target = find_col("链接", 3)
+    col_unsub = find_col("退订", 4)
+    
+    col_lang = find_col(["语言", "Language"])
+    col_region = find_col(["区域", "Region"])
+    col_sender = find_col(["发信人", "签名", "Sender", "Signature"])
+    col_content = find_col("内容")
+    
+    if not (col_lang and col_region and col_text_id):
+        raise ValueError("无法在模板中找到关键列：文案、语言标识、区域列表")
+
+    filled_df = template_df.copy()
+    if len(links) > len(filled_df): links = links[:len(filled_df)]
+    filled_df.loc[:len(links)-1, col_link_target] = links
+    
+    def get_str(col):
+        if col: return filled_df[col].fillna("").astype(str)
+        return pd.Series([""] * len(filled_df))
+
+    b_val = get_str(col_body)
+    c_val = get_str(col_back)
+    d_val = get_str(col_link_target)
+    e_val = get_str(col_unsub)
+    newline = "\n"
+    computed_content = b_val + newline + c_val + d_val + " " + newline + e_val
+    
+    if col_content: filled_df[col_content] = computed_content
+    else:
+        filled_df["Content_Calculated"] = computed_content
+        col_content = "Content_Calculated"
+        
+    valid_rows = filled_df.dropna(subset=[col_lang, col_region])
+    groups = valid_rows[col_text_id].unique()
+    
+    result_data = {}
+    
+    for gid in groups:
+        subset = valid_rows[valid_rows[col_text_id] == gid]
+        if subset.empty: continue
+        export_cols = [c for c in [col_lang, col_region, col_sender, col_content] if c is not None]
+        final_data = subset[export_cols]
+        
+        result_data[gid] = {
+            "default_name": f"output_group_{gid}.xlsx",
+            "data": final_data
+        }
+            
+    return result_data
     # Test
     src = r"d:/短信/20260130_海灯节/short-link-admin_download_task1391718_result.xlsx"
     tpl = r"d:/短信/20260130_海灯节/test.xlsx"
