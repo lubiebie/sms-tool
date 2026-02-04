@@ -17,7 +17,6 @@ st.set_page_config(page_title="Excel Auto-Processing Tool", layout="wide")
 st.title("📊 Excel 自动化处理工具 (Cloud)")
 st.markdown("""
 ### 上传短链文件和初始模板文件，即可以根据文案类别自动聚合并分别导出短信模板
-**完全云端运行，无需安装 Excel。**
 """)
 
 # 1. Source File Upload
@@ -34,8 +33,11 @@ with col_t2:
     st.write("") # Spacer
     # Read local template file to bytes
     try:
-        with open("自动化工具模板.xlsx", "rb") as f:
+        # Use absolute path relative to this script
+        template_path = os.path.join(os.path.dirname(__file__), "自动化工具模板.xlsx")
+        with open(template_path, "rb") as f:
             template_bytes = f.read()
+            
         st.download_button(
             label="📄 点击下载模板\n(查看填写说明)",
             data=template_bytes,
