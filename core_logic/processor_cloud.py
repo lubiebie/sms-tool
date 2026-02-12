@@ -74,10 +74,11 @@ def process_excel_cloud(source_file, template_file, output_dir=None):
     col_lang = find_col(["语言", "Language"])
     col_region = find_col(["区域", "Region"])
     col_sender = find_col(["发信人", "签名", "Sender", "Signature"])
+    col_title = find_col(["标题", "Title"])
     col_content = find_col("内容")  # The Target Column for the formula result
     
     # Debug info
-    print(f"Mapped Columns:\nBody={col_body}\nBack={col_back}\nLink={col_link_target}\nUnsub={col_unsub}\nLang={col_lang}\nRegion={col_region}\nSender={col_sender}\nContent={col_content}")
+    print(f"Mapped Columns:\nBody={col_body}\nBack={col_back}\nLink={col_link_target}\nUnsub={col_unsub}\nLang={col_lang}\nRegion={col_region}\nSender={col_sender}\nTitle={col_title}\nContent={col_content}")
     
     if not (col_lang and col_region and col_text_id):
         raise ValueError("无法在模板中找到关键列：文案、语言标识、区域列表。请检查模板表头。")
@@ -171,8 +172,8 @@ def process_excel_cloud(source_file, template_file, output_dir=None):
         subset = valid_rows[valid_rows[col_text_id] == gid]
         if subset.empty: continue
         
-        # Columns to export: Language, Region, Sender, Content
-        export_cols = [c for c in [col_lang, col_region, col_sender, col_content] if c is not None]
+        # Columns to export: Language, Region, Sender, Title, Content
+        export_cols = [c for c in [col_lang, col_region, col_sender, col_title, col_content] if c is not None]
         
         final_data = subset[export_cols]
         
@@ -243,6 +244,7 @@ def process_excel_cloud_get_data(source_file, template_file):
     col_lang = find_col(["语言", "Language"])
     col_region = find_col(["区域", "Region"])
     col_sender = find_col(["发信人", "签名", "Sender", "Signature"])
+    col_title = find_col(["标题", "Title"])
     col_content = find_col("内容")
     
     if not (col_lang and col_region and col_text_id):
@@ -276,7 +278,7 @@ def process_excel_cloud_get_data(source_file, template_file):
     for gid in groups:
         subset = valid_rows[valid_rows[col_text_id] == gid]
         if subset.empty: continue
-        export_cols = [c for c in [col_lang, col_region, col_sender, col_content] if c is not None]
+        export_cols = [c for c in [col_lang, col_region, col_sender, col_title, col_content] if c is not None]
         final_data = subset[export_cols]
         
         result_data[gid] = {
